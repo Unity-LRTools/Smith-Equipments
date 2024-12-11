@@ -1,0 +1,24 @@
+{
+    "name": "com.lrtools.smith.equipments",
+    "version": "0.1.0",
+    "displayName": "Equipments-Smith",
+    "description": "Rapidly create and customize RPG equipment, random generation, and ready-to-use libraries for seamless Unity integration.",
+    "unity": "2022.3",
+    "licensesUrl": "https://opensource.org/license/mit",
+    "dependencies": {
+      "com.lrtools.easing": "0.2.0",
+      "com.lrtools.utility": "0.6.0",
+      "com.lrtools.smith.statistic": "0.7.0"
+    },
+    "keywords": [
+        "LRTools",
+        "rpg",
+        "Smith",
+        "Equipments"
+      ],
+      "author": {
+        "name": "Lucas Rossignol",
+        "email": "pro.lucasrossignol@gmail.com"
+      }
+  }
+  
