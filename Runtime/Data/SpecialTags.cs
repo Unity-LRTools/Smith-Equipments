@@ -8,6 +8,11 @@ namespace LRT.Smith.Equipments
 	public class SpecialTags : Tags
 	{
 		public string id;
-		protected override IEnumerable<string> GetOptions() => throw new NotImplementedException(); //SpecialTagsData.Instance.Get(id);
+		protected override IEnumerable<string> GetOptions() => SpecialTagsData.Instance.GetSpecialTagsOptions(this);
+
+		public SpecialTags(string id)
+		{
+			this.id = id;
+		}
 	}
 }

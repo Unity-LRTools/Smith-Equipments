@@ -1,7 +1,6 @@
 using LRT.Smith.Statistics;
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace LRT.Smith.Equipments
 {
@@ -11,11 +10,9 @@ namespace LRT.Smith.Equipments
 		public string id;
 		public string rarityID;
 		public string setID;
-		public string visualID;
 
 		public string name;
-		public Sprite Icon;
-		public List<SpecialTags> tags;
-		public List<IStatistic> statistics;
+		public List<SpecialTags> tags = new List<SpecialTags>();
+		public List<Statistic> statistics = new List<Statistic>();
 	}
 }

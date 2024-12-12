@@ -2,7 +2,11 @@
     "name": "LRT.Smith.Equipments.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:9cdb44fbab3afc74a9d461d8d17d8cba"
+        "GUID:9cdb44fbab3afc74a9d461d8d17d8cba",
+        "GUID:65fdd206ccbdc7f4e8a8448c4671ab26",
+        "GUID:9e2dedee172405440b1f0049d45f6ce7",
+        "GUID:4fc05f34f5f235f49aae7f9c53c01c2c",
+        "GUID:912baee57b693b64090f903ff47cd9cb"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
