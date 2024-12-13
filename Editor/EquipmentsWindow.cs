@@ -135,14 +135,13 @@ namespace LRT.Smith.Equipments.Editor
 		#region Equipment
 		public class EquipmentPanel : WindowPanel
 		{
-			public EquipmentData equipment;
+			public EquipmentData equipment = new EquipmentData();
 
 			private EnumFlagListDrawer enumFlagDrawer;
 			private StatisticListDrawer statisticDrawer;
 
 			public EquipmentPanel(EquipmentsWindow window) : base(window) 
 			{
-				equipment = SpecialTagsData.Instance.equipment;
 				enumFlagDrawer = new EnumFlagListDrawer(equipment.flags);
 				statisticDrawer = new StatisticListDrawer(equipment.statistics);
 			}
@@ -152,14 +151,21 @@ namespace LRT.Smith.Equipments.Editor
 				GUILayout.BeginArea(rect);
 
 				equipment.id = EditorGUILayout.TextField("id", equipment.id);
+				equipment.name = EditorGUILayout.TextField("name", equipment.name);
 				equipment.rarityID = EditorGUILayout.TextField("rarityID", equipment.rarityID);
 				equipment.setID = EditorGUILayout.TextField("setID", equipment.setID);
-				equipment.name = EditorGUILayout.TextField("name", equipment.name);
 
-				equipment.statistics = EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
-
-				//equipment.flags.Clear();
+				EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
 				EditorListDrawer<EnumFlag>.Draw("Flags", enumFlagDrawer);
+
+				EditorGUILayout.BeginHorizontal();
+				GUILayout.FlexibleSpace();
+				if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
+				{
+					EquipmentsData.Instance.equipments.Add(equipment);
+					EditorUtility.SetDirty(EquipmentsData.Instance);
+				}
+				EditorGUILayout.EndHorizontal();
 
 				GUILayout.EndArea();
 			}
@@ -213,6 +219,7 @@ namespace LRT.Smith.Equipments.Editor
 					fullTypeName = types[index].AssemblyQualifiedName;
 				}
 
+				#region Helpers
 				public Assembly[] GetUnityRuntimeAssembly()
 				{
 					// Get all loaded assemblies in the current AppDomain
@@ -236,6 +243,7 @@ namespace LRT.Smith.Equipments.Editor
 					}
 					return enums;
 				}
+				#endregion
 			}
 
 			public class StatisticListDrawer : EditorListDrawer<Statistic>.ListDrawer

@@ -12,9 +12,8 @@ namespace LRT.Smith.Equipments
 		public string setID;
 
 		public string name;
-		public List<SpecialTags> tags = new List<SpecialTags>();
 		public List<Statistic> statistics = new List<Statistic>();
-		public List<EnumFlag> flags;
+		public List<EnumFlag> flags = new List<EnumFlag>();
 	}
 
 	[Serializable]
