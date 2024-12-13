@@ -14,5 +14,13 @@ namespace LRT.Smith.Equipments
 		public string name;
 		public List<SpecialTags> tags = new List<SpecialTags>();
 		public List<Statistic> statistics = new List<Statistic>();
+		public List<EnumFlag> flags;
+	}
+
+	[Serializable]
+	public class EnumFlag
+	{
+		public int mask;
+		public string @enum;
 	}
 }

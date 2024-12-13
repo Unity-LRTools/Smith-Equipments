@@ -9,6 +9,8 @@ namespace LRT.Smith.Equipments
 	{
 		private static string GetPath() => "Assets/Smith/Equipments/Resources"; //Called by reflection
 
+		public EquipmentData equipment = new EquipmentData();
+
 		public List<KeyValue> specialTags = new List<KeyValue>();
 
 		public List<string> GetSpecialTagsOptions(SpecialTags tag)

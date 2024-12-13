@@ -5,6 +5,7 @@ using LRT.Utility.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,7 +29,7 @@ namespace LRT.Smith.Equipments.Editor
 		[MenuItem("Smith/Equipments")]
 		public static void ShowWindow()
 		{
-			EquipmentsWindow wizard = GetWindow<EquipmentsWindow>("Equipments");
+			EquipmentsWindow wizard = GetWindow<EquipmentsWindow>("Equipments", typeof(StatisticSettingsWizard));
 			wizard.titleContent = new GUIContent("Equipments", EditorGUIUtility.IconContent("CustomTool@2x").image);
 		}
 
@@ -134,14 +135,15 @@ namespace LRT.Smith.Equipments.Editor
 		#region Equipment
 		public class EquipmentPanel : WindowPanel
 		{
-			public EquipmentData equipment = new EquipmentData();
+			public EquipmentData equipment;
 
-			private SpecialTagsListDrawer tagsDrawer;
+			private EnumFlagListDrawer enumFlagDrawer;
 			private StatisticListDrawer statisticDrawer;
 
 			public EquipmentPanel(EquipmentsWindow window) : base(window) 
 			{
-				tagsDrawer = new SpecialTagsListDrawer(equipment.tags);
+				equipment = SpecialTagsData.Instance.equipment;
+				enumFlagDrawer = new EnumFlagListDrawer(equipment.flags);
 				statisticDrawer = new StatisticListDrawer(equipment.statistics);
 			}
 
@@ -149,14 +151,15 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				GUILayout.BeginArea(rect);
 
-				EditorGUILayout.TextField("id", equipment.id);
-				EditorGUILayout.TextField("rarityID", equipment.id);
-				EditorGUILayout.TextField("setID", equipment.id);
-				EditorGUILayout.TextField("name", equipment.id);
+				equipment.id = EditorGUILayout.TextField("id", equipment.id);
+				equipment.rarityID = EditorGUILayout.TextField("rarityID", equipment.rarityID);
+				equipment.setID = EditorGUILayout.TextField("setID", equipment.setID);
+				equipment.name = EditorGUILayout.TextField("name", equipment.name);
 
-                EditorListDrawer<SpecialTags>.Draw("Special Tags", tagsDrawer);
+				equipment.statistics = EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
 
-				EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
+				//equipment.flags.Clear();
+				EditorListDrawer<EnumFlag>.Draw("Flags", enumFlagDrawer);
 
 				GUILayout.EndArea();
 			}
@@ -166,45 +169,72 @@ namespace LRT.Smith.Equipments.Editor
 				
 			}
 
-			public class SpecialTagsListDrawer : EditorListDrawer<SpecialTags>.ListDrawer
+			public class EnumFlagListDrawer : EditorListDrawer<EnumFlag>.ListDrawer
 			{
 				public override bool DrawHeader { get => false; }
 
-				string newId;
+				string typeName;
+				string fullTypeName;
 
-				public SpecialTagsListDrawer(List<SpecialTags> tags) : base(tags) { }
+				public EnumFlagListDrawer(List<EnumFlag> flags) : base(flags) { }
 
-				public override void DrawItem(SpecialTags item, int index)
+				public override void DrawItem(EnumFlag item, int index)
 				{
 					GUILayout.BeginHorizontal();
 
-					TagsLayout.TagsFlagField(item.id, item, SpecialTagsData.Instance.GetSpecialTagsOptions(item));
+					Type enumType = Type.GetType(item.@enum);
+					Enum e = (Enum)Enum.ToObject(enumType, item.mask);
 
-					EditorListDrawer<SpecialTags>.DrawUtilities(items, index, Orderable);
+					item.mask = (int)(object)EditorGUILayout.EnumFlagsField("Flags", e);
+
+					EditorListDrawer<EnumFlag>.DrawUtilities(items, index, Orderable);
 
 					GUILayout.EndHorizontal();
 				}
 
-				public override string GetTitle(int i)
+				public override EnumFlag OnCreate()
 				{
-					return items[i].id;
-				}
+					EnumFlag flag = new EnumFlag()
+					{
+						@enum = fullTypeName,
+						mask = 0,
+					};
 
-				public override SpecialTags OnCreate()
-				{
-					SpecialTags tags = new SpecialTags(newId);
-					newId = string.Empty;
-					return tags;
+					return flag;
 				}
 
 				public override void DrawBeforeAddButton()
 				{
-					newId = EditorGUILayout.TextField("New Special Tags:", newId);
+					List<Type> types = GetEnumsWithAttribute<EquipmentFlags>(GetUnityRuntimeAssembly());
+					string[] typesNames = types.Select(t => t.FullName).ToArray();
+					int index = Mathf.Max(0, Array.IndexOf(typesNames, typeName));
+
+					typeName = typesNames[EditorGUILayout.Popup("Pick a flag:", index, typesNames)];
+					fullTypeName = types[index].AssemblyQualifiedName;
 				}
 
-				public override bool IsAddButtonValid()
+				public Assembly[] GetUnityRuntimeAssembly()
 				{
-					return !string.IsNullOrEmpty(newId) && !SpecialTagsData.Instance.specialTags.Any(kv => kv.id == newId);
+					// Get all loaded assemblies in the current AppDomain
+					Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+					// Find Unity runtime and first-pass assemblies
+					//Assembly firstPassAssembly = loadedAssemblies.FirstOrDefault(a => a.GetName().Name == "Assembly-CSharp-firstpass");
+					Assembly runtimeAssembly = loadedAssemblies.FirstOrDefault(a => a.GetName().Name == "Assembly-CSharp");
+
+					return new Assembly[1] { runtimeAssembly };
+				}
+
+				public static List<Type> GetEnumsWithAttribute<TAttribute>(params Assembly[] assemblies) where TAttribute : Attribute
+				{
+					List<Type> enums = new List<Type>();
+					for (int i = 0; i < assemblies.Length; i++)
+					{
+						enums.AddRange(assemblies[i].GetTypes()
+						.Where(type => type.IsEnum && type.GetCustomAttribute<TAttribute>() != null)
+						.ToList());
+					}
+					return enums;
 				}
 			}
 
