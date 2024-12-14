@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace LRT.Smith.Equipments
 {
 	[Serializable]
 	public class RarityData
 	{
-		string id;
-		string name;
-		List<Modifier> modifier;
+		public string id;
+		public string name;
+		public Color color = Color.white;
+		public List<Modifier> modifier = new List<Modifier>();
 	}
 
 	[Serializable]
 	public class Modifier
 	{
-		Type modifierType;
-		float modifier;
+		public Type modifierType;
+		public float modifier;
 
 		public enum Type
 		{

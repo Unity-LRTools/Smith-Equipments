@@ -14,8 +14,9 @@ namespace LRT.Smith.Equipments.Editor
 	public class EquipmentsWindow : EditorWindow
 	{
 		private Dictionary<WindowPanelType, WindowPanel> panels;
-		private WindowPanelType state;
-		private WindowPanelView view;
+		private WindowPanelType state = WindowPanelType.Rarity;
+		private WindowPanelView view = WindowPanelView.Create;
+
 		private Dictionary<WindowPanelType, bool> foldouts = new Dictionary<WindowPanelType, bool>()
 			{
 				{ WindowPanelType.Equipment, true },
@@ -43,7 +44,7 @@ namespace LRT.Smith.Equipments.Editor
 					{  WindowPanelType.Rarity, new RarityPanel(this) },
 					{  WindowPanelType.Set, new SetPanel(this) },
 				};
-				state = WindowPanelType.Equipment;
+				state = WindowPanelType.Rarity;
 			}
 		}
 
@@ -148,11 +149,16 @@ namespace LRT.Smith.Equipments.Editor
 
 			public override void OnGUICreate(Rect rect)
 			{
+				Dictionary<string, string> rarityOptions = EquipmentsData.Instance.rarities.ToDictionary(r => r.id, r => $"{r.name} ({r.id})");
+				int rarityIndex = Mathf.Max(0, Array.IndexOf(rarityOptions.Keys.ToArray(), equipment.rarityID));
+
 				GUILayout.BeginArea(rect);
 
-				equipment.id = EditorGUILayout.TextField("id", equipment.id);
+				EditorGUILayout.LabelField("New Equipment", EditorStyles.boldLabel);
+
+				equipment.id = EditorGUILayout.TextField("ID", equipment.id);
 				equipment.name = EditorGUILayout.TextField("name", equipment.name);
-				equipment.rarityID = EditorGUILayout.TextField("rarityID", equipment.rarityID);
+				equipment.rarityID = rarityOptions.Keys.ToArray()[EditorGUILayout.Popup("Rarity", rarityIndex, rarityOptions.Values.ToArray())];
 				equipment.setID = EditorGUILayout.TextField("setID", equipment.setID);
 
 				EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
@@ -279,16 +285,78 @@ namespace LRT.Smith.Equipments.Editor
 		#region Rarity
 		public class RarityPanel : WindowPanel
 		{
-			public RarityPanel(EquipmentsWindow window) : base(window) { }
+			RarityData rarity;
+
+			ModifierListDrawer modifierDrawer;
+
+			public RarityPanel(EquipmentsWindow window) : base(window) 
+			{
+				rarity = new RarityData();
+				modifierDrawer = new ModifierListDrawer(rarity.modifier);
+			}
 
 			public override void OnGUICreate(Rect rect)
 			{
-				EditorGUI.DrawRect(rect, Color.green);
+				GUILayout.BeginArea(rect);
+
+				EditorGUILayout.LabelField("New Rarity", EditorStyles.boldLabel);
+
+				rarity.id = EditorGUILayout.TextField("ID", rarity.id);
+				rarity.name = EditorGUILayout.TextField("Name", rarity.name);
+				rarity.color = EditorGUILayout.ColorField("Color", rarity.color);
+				EditorListDrawer<Modifier>.Draw("Modifiers", modifierDrawer);
+
+				EditorGUILayout.BeginHorizontal();
+				GUILayout.FlexibleSpace();
+				if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
+				{
+					EquipmentsData.Instance.rarities.Add(rarity);
+					EditorUtility.SetDirty(EquipmentsData.Instance);
+				}
+				EditorGUILayout.EndHorizontal();
+
+				GUILayout.EndArea();
 			}
 
 			public override void OnGUIUpdate(Rect rect)
 			{
-				throw new NotImplementedException();
+				
+			}
+
+			private class ModifierListDrawer : EditorListDrawer<Modifier>.ListDrawer
+			{
+				public override bool DrawHeader { get => false; }
+
+				public ModifierListDrawer(List<Modifier> items) : base(items) { }
+
+				public override void DrawItem(Modifier item, int index)
+				{
+					EditorGUILayout.BeginHorizontal();
+
+					item.modifierType = (Modifier.Type) EditorGUILayout.EnumPopup("Type", item.modifierType);
+
+					if (item.modifierType == Modifier.Type.Offset)
+					{
+						item.modifier = EditorGUILayout.FloatField("Modifier", item.modifier);
+					}
+					else
+					{
+						item.modifier = EditorGUILayout.FloatField(item.modifier);
+						EditorGUILayout.LabelField($"{item.modifier * 100}%", GUILayout.Width(60));
+					}
+
+					EditorGUILayout.EndHorizontal();
+				}
+
+				public override void DrawBeforeAddButton()
+				{
+					GUILayout.FlexibleSpace();
+				}
+
+				public override Modifier OnCreate()
+				{
+					return new Modifier();
+				}
 			}
 		}
 		#endregion

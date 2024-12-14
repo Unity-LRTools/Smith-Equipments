@@ -8,5 +8,6 @@ namespace LRT.Smith.Equipments
 		private static string GetPath() => "Assets/Smith/Equipments/Resources"; //Called by reflection
 
 		public List<EquipmentData> equipments = new List<EquipmentData>();
+		public List<RarityData> rarities = new List<RarityData>();
 	}
 }
