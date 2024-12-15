@@ -7,9 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
-using UnityEditor.PackageManager;
 using UnityEngine;
-using static LRT.Smith.Equipments.Editor.EquipmentsWindow.EquipmentPanel;
 
 namespace LRT.Smith.Equipments.Editor
 {
@@ -92,6 +90,7 @@ namespace LRT.Smith.Equipments.Editor
 						{
 							state = values[i];
 							view = valuesView[j];
+							GUI.FocusControl(null);
 						}
 
 						rect = rect.MoveY(EditorGUIUtility.singleLineHeight);
@@ -102,7 +101,12 @@ namespace LRT.Smith.Equipments.Editor
 		}
 
 		#region Panels
-		public abstract class WindowPanel
+		public abstract class WindowPanel 
+		{
+			public abstract void OnGUI(Rect rect);
+		}
+
+		public abstract class WindowPanel<T> : WindowPanel
 		{
 			protected EquipmentsWindow window;
 
@@ -111,31 +115,66 @@ namespace LRT.Smith.Equipments.Editor
 				this.window = wizard;
 			}
 
-			public void OnGUI(Rect rect)
+			public override void OnGUI(Rect rect)
 			{
-				GUILayout.BeginArea(rect);
-
 				switch (window.view)
 				{
 					case WindowPanelView.Create:
+						GUILayout.BeginArea(rect);
 						OnGUICreate();
 						CreateButton(Errors(CheckErrors(), CheckWarnings()));
+						GUILayout.EndArea();
 						break;
 					case WindowPanelView.Update:
-						OnGUIUpdate();
+						DisplayTable(rect, GetTable());
 						break;
 				}
 
-				GUILayout.EndArea();
 			}
 
 			public abstract void OnGUICreate();
 
-			public abstract void OnGUIUpdate();
-
 			protected abstract List<string> CheckErrors();
 			protected abstract List<string> CheckWarnings();
 			protected abstract void OnCreateButton();
+
+			protected abstract Table<T> GetTable();
+
+			private void DisplayTable(Rect rect, Table<T> table)
+			{
+				float lineHeight = EditorGUIUtility.singleLineHeight * 2;
+				Rect line = rect.SetHeight(lineHeight);
+				Rect[] flex = line.Flex(table.FlexParameters);
+
+				for (int i = 0; i < table.tableData.Count; i++)
+				{
+					EditorGUI.LabelField(flex[i], table.tableData[i].header, EditorStyles.boldLabel);
+				}
+
+				for (int i = 0; i < table.database.Count; i++)
+				{
+					T equipment = table.database[i];
+					line.NextLine(lineHeight);
+
+					Rect[] lineFlex = line.Flex(table.FlexParameters);
+					EditorGUIUtility.AddCursorRect(line, MouseCursor.Link);
+
+					if (line.MouseHover())
+						EditorGUI.DrawRect(line, Color.black * 0.4f);
+					else
+						EditorGUI.DrawRect(line, i % 2 == 0 ? Color.white * 0.3f : Color.gray * 0.3f);
+
+					for (int j = 0; j < table.tableData.Count; j++)
+					{
+						LabelField(lineFlex[j], table.tableData[j].GetContent(equipment));
+					}
+				}
+
+				void LabelField(Rect rect, string content)
+				{
+					EditorGUI.LabelField(rect.Tooltip(content ?? ""), content);
+				}
+			}
 
 			private bool Errors(List<string> errors, List<string> warnings)
 			{
@@ -164,10 +203,41 @@ namespace LRT.Smith.Equipments.Editor
 				}
 				EditorGUILayout.EndHorizontal();
 			}
+
+			public class Table<T>
+			{
+				public int[] FlexParameters => tableData.Select(d => d.weight).ToArray();
+
+				public List<T> database;
+
+				public List<TableData<T>> tableData;
+
+				public Table(List<TableData<T>> data, List<T> database)
+				{
+					this.database = database;
+					this.tableData = data;
+				}
+			}
+
+			public class TableData<T>
+			{
+				public string header;
+				public int weight;
+				private Func<T, string> getContent;
+
+				public TableData(string header, Func<T, string> getContent, int weight)
+				{
+					this.header = header;
+					this.getContent = getContent;
+					this.weight = weight;
+				}
+
+				public string GetContent(T item) => getContent(item);
+			}
 		}
 
 		#region Equipment
-		public class EquipmentPanel : WindowPanel
+		public class EquipmentPanel : WindowPanel<EquipmentData>
 		{
 			public EquipmentData equipment = new EquipmentData();
 
@@ -180,6 +250,7 @@ namespace LRT.Smith.Equipments.Editor
 				statisticDrawer = new StatisticListDrawer(equipment.statistics);
 			}
 
+			#region Create
 			public override void OnGUICreate()
 			{
 				EditorGUILayout.LabelField("New Equipment", EditorStyles.boldLabel);
@@ -284,10 +355,21 @@ namespace LRT.Smith.Equipments.Editor
 				statisticDrawer = new StatisticListDrawer(equipment.statistics);
 				EditorUtility.SetDirty(EquipmentsData.Instance);
 			}
+			#endregion
 
-			public override void OnGUIUpdate()
+			protected override Table<EquipmentData> GetTable()
 			{
+				List<TableData<EquipmentData>> tableData = new List<TableData<EquipmentData>>()
+				{
+					new TableData<EquipmentData>("ID", e => e.id, 3),
+					new TableData<EquipmentData>("NAME", e => e.name, 2),
+					new TableData<EquipmentData>("RARITY", e => EquipmentsData.Instance.GetRarity(e.rarityID)?.name, 2),
+					new TableData<EquipmentData>("SET", e => EquipmentsData.Instance.GetSet(e.setID)?.name, 2),
+					new TableData<EquipmentData>("FLAGS", e => string.Join(',', e.flags.ConvertAll(f => f.GetEnum()).Select(f => f.ToString())), 3),
+					new TableData<EquipmentData>("STATISTICS", e => string.Join(',', e.statistics.Select(s => s.ToString())), 4),
+				};
 
+				return new Table<EquipmentData>(tableData, EquipmentsData.Instance.equipments);
 			}
 
 			public class EnumFlagListDrawer : EditorListDrawer<EnumFlag>.ListDrawer
@@ -394,7 +476,7 @@ namespace LRT.Smith.Equipments.Editor
 		#endregion
 
 		#region Rarity
-		public class RarityPanel : WindowPanel
+		public class RarityPanel : WindowPanel<RarityData>
 		{
 			RarityData rarity;
 
@@ -414,11 +496,6 @@ namespace LRT.Smith.Equipments.Editor
 				rarity.name = EditorGUILayout.TextField("Name", rarity.name);
 				rarity.color = EditorGUILayout.ColorField("Color", rarity.color);
 				EditorListDrawer<Modifier>.Draw("Modifiers", modifierDrawer);
-			}
-
-			public override void OnGUIUpdate()
-			{
-
 			}
 
 			protected override List<string> CheckErrors()
@@ -448,6 +525,19 @@ namespace LRT.Smith.Equipments.Editor
 					warnings.Add("Color is still default white color.");
 
 				return warnings;
+			}
+
+			protected override Table<RarityData> GetTable()
+			{
+				List<TableData<RarityData>> tableData = new List<TableData<RarityData>>()
+				{
+					new TableData<RarityData>("ID", r => r.id, 3),
+					new TableData<RarityData>("NAME", r => r.name, 2),
+					new TableData<RarityData>("RARITY", r => r.color.ToString(), 2),
+					new TableData<RarityData>("MODIFIER", r => string.Join(',', r.modifier.Select(m => m.ToString())), 4),
+				};
+
+				return new Table<RarityData>(tableData, EquipmentsData.Instance.rarities);
 			}
 
 			protected override void OnCreateButton()
@@ -500,7 +590,7 @@ namespace LRT.Smith.Equipments.Editor
 		#endregion
 
 		#region Set
-		public class SetPanel : WindowPanel
+		public class SetPanel : WindowPanel<SetData>
 		{
 			SetData set = new SetData();
 
@@ -518,11 +608,6 @@ namespace LRT.Smith.Equipments.Editor
 				set.id = EditorGUILayout.TextField("ID", set.id);
 				set.name = EditorGUILayout.TextField("Name", set.name);
 				EditorListDrawer<string>.Draw("Equipments", equipmentDrawer);
-			}
-
-			public override void OnGUIUpdate()
-			{
-
 			}
 
 			protected override void OnCreateButton()
@@ -557,6 +642,18 @@ namespace LRT.Smith.Equipments.Editor
 					warnings.Add("There is another set with the same name.");
 
 				return warnings;
+			}
+
+			protected override Table<SetData> GetTable()
+			{
+				List<TableData<SetData>> tableData = new List<TableData<SetData>>()
+				{
+					new TableData<SetData>("ID", r => r.id, 3),
+					new TableData<SetData>("NAME", r => r.name, 2),
+					new TableData<SetData>("SETS", r => string.Join(',', r.equipmentsID.Select(r => r)), 4),
+				};
+
+				return new Table<SetData>(tableData, EquipmentsData.Instance.sets);
 			}
 
 			private class EquipmentListDrawer : EditorListDrawer<string>.ListDrawer
@@ -608,10 +705,38 @@ namespace LRT.Smith.Equipments.Editor
 
 	public static class RectExtension
 	{
-		public static Rect NextLine(ref this Rect rect)
+		public static Rect NextLine(ref this Rect rect) => NextLine(ref rect, EditorGUIUtility.singleLineHeight);
+
+		public static Rect NextLine(ref this Rect rect, float lineHeight)
 		{
-			rect = rect.MoveY(EditorGUIUtility.singleLineHeight);
+			rect = rect.MoveY(lineHeight);
 			return rect;
+		}
+
+		public static Rect[] Flex(this Rect rect, params int[] weight)
+		{
+			Rect[] flex = new Rect[weight.Length];
+			float[] normalizedWeight = new float[weight.Length];
+			int sum = weight.Sum();
+
+			for (int i = 0; i < weight.Length; i++)
+			{
+				normalizedWeight[i] = weight[i] / (float)sum;
+			}
+
+			for (int i = 0; i < normalizedWeight.Length; i++)
+			{
+				float width = rect.width * normalizedWeight[i];
+				float offset = flex.Take(i).Select(r => r.width).Sum();
+				flex[i] = rect.SetWidth(width).MoveX(offset);
+			}
+
+			return flex;
+		}
+
+		public static bool MouseHover(this Rect rect)
+		{
+			return rect.Contains(Event.current.mousePosition);
 		}
 	}
 }

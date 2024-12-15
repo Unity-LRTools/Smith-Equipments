@@ -33,5 +33,15 @@ namespace LRT.Smith.Equipments
 				}
 			}
 		}
+
+		public RarityData GetRarity(string id)
+		{
+			return rarities.FirstOrDefault(r => r.id == id);
+		}
+
+		public SetData GetSet(string id)
+		{
+			return sets.FirstOrDefault(r => r.id == id);
+		}
 	}
 }

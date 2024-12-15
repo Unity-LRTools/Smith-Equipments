@@ -44,5 +44,10 @@ namespace LRT.Smith.Equipments
 				@enum = @enum,
 			};
 		}
+
+		public Enum GetEnum()
+		{
+			return (Enum)Enum.ToObject(Type.GetType(@enum), mask);
+		}
 	}
 }

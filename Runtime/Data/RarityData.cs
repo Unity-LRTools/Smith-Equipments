@@ -24,5 +24,10 @@ namespace LRT.Smith.Equipments
 			Offset,
 			Percentage,
 		}
+
+		public override string ToString()
+		{
+			return $"{modifierType}:{modifier}";
+		}
 	}
 }
