@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using static Codice.CM.WorkspaceServer.WorkspaceTreeDataStore;
 
 namespace LRT.Smith.Equipments.Editor
 {
@@ -153,7 +154,7 @@ namespace LRT.Smith.Equipments.Editor
 
 				for (int i = 0; i < table.database.Count; i++)
 				{
-					T equipment = table.database[i];
+					T item = table.database[i];
 					line.NextLine(lineHeight);
 
 					Rect[] lineFlex = line.Flex(table.FlexParameters);
@@ -166,7 +167,7 @@ namespace LRT.Smith.Equipments.Editor
 
 					for (int j = 0; j < table.tableData.Count; j++)
 					{
-						LabelField(lineFlex[j], table.tableData[j].GetContent(equipment));
+						table.tableData[j].Draw(lineFlex[j], item);
 					}
 				}
 
@@ -219,20 +220,48 @@ namespace LRT.Smith.Equipments.Editor
 				}
 			}
 
-			public class TableData<T>
+			public abstract class TableData<T>
 			{
 				public string header;
 				public int weight;
-				private Func<T, string> getContent;
+				protected Func<T, object> getValue;
 
-				public TableData(string header, Func<T, string> getContent, int weight)
+				public TableData(string header, Func<T, object> getValue, int weight)
 				{
 					this.header = header;
-					this.getContent = getContent;
+					this.getValue = getValue;
 					this.weight = weight;
 				}
 
-				public string GetContent(T item) => getContent(item);
+				public abstract void Draw(Rect rect, T item);
+			}
+
+			public abstract class TableData : TableData<T>
+			{
+				public TableData(string header, Func<T, object> getContent, int weight) : base(header, getContent, weight) { }
+			}
+
+			public class TableDataString : TableData
+			{
+				public TableDataString(string header, Func<T, object> getValue, int weight) : base(header, getValue, weight) { }
+				
+				public override void Draw(Rect rect, T item)
+				{
+					string content = (string)getValue(item);
+					EditorGUI.LabelField(rect.Tooltip(content ?? ""), content);
+				}
+			}
+
+			public class TableDataColor : TableData
+			{
+				public TableDataColor(string header, Func<T, object> getValue, int weight) : base(header, getValue, weight)  { }
+
+				public override void Draw(Rect rect, T item)
+				{
+					Color color = (Color)getValue(item);
+					Rect padded = rect.ShrinkBy(0.7f, 1f, 0.7f, 0.85f);
+					EditorGUI.DrawRect(padded, color);
+				}
 			}
 		}
 
@@ -361,12 +390,12 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				List<TableData<EquipmentData>> tableData = new List<TableData<EquipmentData>>()
 				{
-					new TableData<EquipmentData>("ID", e => e.id, 3),
-					new TableData<EquipmentData>("NAME", e => e.name, 2),
-					new TableData<EquipmentData>("RARITY", e => EquipmentsData.Instance.GetRarity(e.rarityID)?.name, 2),
-					new TableData<EquipmentData>("SET", e => EquipmentsData.Instance.GetSet(e.setID)?.name, 2),
-					new TableData<EquipmentData>("FLAGS", e => string.Join(',', e.flags.ConvertAll(f => f.GetEnum()).Select(f => f.ToString())), 3),
-					new TableData<EquipmentData>("STATISTICS", e => string.Join(',', e.statistics.Select(s => s.ToString())), 4),
+					new TableDataString("ID", e => e.id, 3),
+					new TableDataString("NAME", e => e.name, 2),
+					new TableDataString("RARITY", e => EquipmentsData.Instance.GetRarity(e.rarityID)?.name, 2),
+					new TableDataString("SET", e => EquipmentsData.Instance.GetSet(e.setID)?.name, 2),
+					new TableDataString("FLAGS", e => string.Join(',', e.flags.ConvertAll(f => f.GetEnum()).Select(f => f.ToString())), 3),
+					new TableDataString("STATISTICS", e => string.Join(',', e.statistics.Select(s => s.ToString())), 4),
 				};
 
 				return new Table<EquipmentData>(tableData, EquipmentsData.Instance.equipments);
@@ -531,10 +560,10 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				List<TableData<RarityData>> tableData = new List<TableData<RarityData>>()
 				{
-					new TableData<RarityData>("ID", r => r.id, 3),
-					new TableData<RarityData>("NAME", r => r.name, 2),
-					new TableData<RarityData>("RARITY", r => r.color.ToString(), 2),
-					new TableData<RarityData>("MODIFIER", r => string.Join(',', r.modifier.Select(m => m.ToString())), 4),
+					new TableDataString("ID", r => r.id, 3),
+					new TableDataString("NAME", r => r.name, 2),
+					new TableDataColor("COLOR", r => r.color, 1),
+					new TableDataString("MODIFIER", r => string.Join(',', r.modifier.Select(m => m.ToString())), 4),
 				};
 
 				return new Table<RarityData>(tableData, EquipmentsData.Instance.rarities);
@@ -648,9 +677,9 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				List<TableData<SetData>> tableData = new List<TableData<SetData>>()
 				{
-					new TableData<SetData>("ID", r => r.id, 3),
-					new TableData<SetData>("NAME", r => r.name, 2),
-					new TableData<SetData>("SETS", r => string.Join(',', r.equipmentsID.Select(r => r)), 4),
+					new TableDataString("ID", r => r.id, 3),
+					new TableDataString("NAME", r => r.name, 2),
+					new TableDataString("SETS", r => string.Join(',', r.equipmentsID.Select(r => r)), 4),
 				};
 
 				return new Table<SetData>(tableData, EquipmentsData.Instance.sets);
