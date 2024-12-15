@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
+using static LRT.Smith.Equipments.Editor.EquipmentsWindow.EquipmentPanel;
 
 namespace LRT.Smith.Equipments.Editor
 {
@@ -117,6 +119,7 @@ namespace LRT.Smith.Equipments.Editor
 				{
 					case WindowPanelView.Create:
 						OnGUICreate();
+						CreateButton(Errors(CheckErrors(), CheckWarnings()));
 						break;
 					case WindowPanelView.Update:
 						OnGUIUpdate();
@@ -129,6 +132,38 @@ namespace LRT.Smith.Equipments.Editor
 			public abstract void OnGUICreate();
 
 			public abstract void OnGUIUpdate();
+
+			protected abstract List<string> CheckErrors();
+			protected abstract List<string> CheckWarnings();
+			protected abstract void OnCreateButton();
+
+			private bool Errors(List<string> errors, List<string> warnings)
+			{
+				foreach (string error in errors)
+				{
+					EditorGUILayout.HelpBox(error, MessageType.Error);
+				}
+
+				foreach (string warning in warnings)
+				{
+					EditorGUILayout.HelpBox(warning, MessageType.Warning);
+				}
+
+				return errors.Count > 0;
+			}
+
+			private void CreateButton(bool isError)
+			{
+
+				EditorGUILayout.BeginHorizontal();
+				GUILayout.FlexibleSpace();
+				using (new EditorGUI.DisabledGroupScope(isError))
+				{
+					if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
+						OnCreateButton();
+				}
+				EditorGUILayout.EndHorizontal();
+			}
 		}
 
 		#region Equipment
@@ -197,38 +232,17 @@ namespace LRT.Smith.Equipments.Editor
 
 				EditorListDrawer<Statistic>.Draw("Statistics", statisticDrawer);
 				EditorListDrawer<EnumFlag>.Draw("Flags", enumFlagDrawer);
-
-				List<string> errors = CheckErrors();
-				List<string> warnings = CheckWarnings();
-
-				EditorGUILayout.BeginHorizontal();
-				GUILayout.FlexibleSpace();
-				using (new EditorGUI.DisabledGroupScope(errors.Count > 0))
-				{
-					if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
-					{
-						EquipmentsData.Instance.equipments.Add(new EquipmentData(equipment));
-						EquipmentsData.Instance.AddEquipmentToSet(equipment);
-						equipment = new EquipmentData();
-						enumFlagDrawer = new EnumFlagListDrawer(equipment.flags);
-						statisticDrawer = new StatisticListDrawer(equipment.statistics);
-						EditorUtility.SetDirty(EquipmentsData.Instance);
-					}
-				}
-				EditorGUILayout.EndHorizontal();
-
-				Errors(errors, warnings);
 			}
 
-			private List<string> CheckErrors()
+			protected override List<string> CheckErrors()
 			{
 				List<string> errors = new List<string>();
 
-				if (equipment.id == null)
+				if (string.IsNullOrEmpty(equipment.id))
 					errors.Add("ID can't be null.");
 
-				if (equipment.id != null && EquipmentsData.Instance.equipments.Select(e => e.id).Any(id => id == equipment.id))
-					errors.Add("There is another equipment with the same ID.");
+				if (!string.IsNullOrEmpty(equipment.id) && EquipmentsData.Instance.equipments.Select(e => e.id).Any(id => id == equipment.id))
+					errors.Add("ID should be unique. There is another equipment with the same ID.");
 
 				if (equipment.rarityID == null)
 					errors.Add("Equipment should always have a rarity");
@@ -236,9 +250,15 @@ namespace LRT.Smith.Equipments.Editor
 				return errors;
 			}
 
-			private List<string> CheckWarnings()
+			protected override List<string> CheckWarnings()
 			{
 				List<string> warnings = new List<string>();
+
+				if (string.IsNullOrEmpty(equipment.name))
+					warnings.Add("There is no equipment name.");
+
+				if (!string.IsNullOrEmpty(equipment.name) && EquipmentsData.Instance.equipments.Select(e => e.name).Any(name => name == equipment.name))
+					warnings.Add("There is another equipment with the same name.");
 
 				if (equipment.statistics.Count == 0)
 					warnings.Add("There is no statistic set.");
@@ -255,17 +275,14 @@ namespace LRT.Smith.Equipments.Editor
 				return warnings;
 			}
 
-			private void Errors(List<string> errors, List<string> warnings)
+			protected override void OnCreateButton()
 			{
-				foreach (string error in errors)
-				{
-					EditorGUILayout.HelpBox(error, MessageType.Error);
-				}
-
-				foreach (string warning in warnings)
-				{
-					EditorGUILayout.HelpBox(warning, MessageType.Warning);
-				}
+				EquipmentsData.Instance.equipments.Add(new EquipmentData(equipment));
+				EquipmentsData.Instance.AddEquipmentToSet(equipment);
+				equipment = new EquipmentData();
+				enumFlagDrawer = new EnumFlagListDrawer(equipment.flags);
+				statisticDrawer = new StatisticListDrawer(equipment.statistics);
+				EditorUtility.SetDirty(EquipmentsData.Instance);
 			}
 
 			public override void OnGUIUpdate()
@@ -397,21 +414,47 @@ namespace LRT.Smith.Equipments.Editor
 				rarity.name = EditorGUILayout.TextField("Name", rarity.name);
 				rarity.color = EditorGUILayout.ColorField("Color", rarity.color);
 				EditorListDrawer<Modifier>.Draw("Modifiers", modifierDrawer);
-
-				EditorGUILayout.BeginHorizontal();
-				GUILayout.FlexibleSpace();
-				if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
-				{
-					EquipmentsData.Instance.rarities.Add(rarity);
-					rarity = new RarityData();
-					EditorUtility.SetDirty(EquipmentsData.Instance);
-				}
-				EditorGUILayout.EndHorizontal();
 			}
 
 			public override void OnGUIUpdate()
 			{
 
+			}
+
+			protected override List<string> CheckErrors()
+			{
+				List<string> errors = new List<string>();
+
+				if (rarity.id == null)
+					errors.Add("ID can't be null.");
+
+				if (rarity.id != null && EquipmentsData.Instance.rarities.Select(e => e.id).Any(id => id == rarity.id))
+					errors.Add("ID should be unique. There is another rarity with the same ID.");
+
+				return errors;
+			}
+
+			protected override List<string> CheckWarnings()
+			{
+				List<string> warnings = new List<string>();
+
+				if (rarity.name == null)
+					warnings.Add("There is no rarity name.");
+
+				if (rarity.name != null && EquipmentsData.Instance.rarities.Select(e => e.name).Any(name => name == rarity.name))
+					warnings.Add("There is another rarity with the same name.");
+
+				if (rarity.color == Color.white)
+					warnings.Add("Color is still default white color.");
+
+				return warnings;
+			}
+
+			protected override void OnCreateButton()
+			{
+				EquipmentsData.Instance.rarities.Add(rarity);
+				rarity = new RarityData();
+				EditorUtility.SetDirty(EquipmentsData.Instance);
 			}
 
 			private class ModifierListDrawer : EditorListDrawer<Modifier>.ListDrawer
@@ -475,22 +518,45 @@ namespace LRT.Smith.Equipments.Editor
 				set.id = EditorGUILayout.TextField("ID", set.id);
 				set.name = EditorGUILayout.TextField("Name", set.name);
 				EditorListDrawer<string>.Draw("Equipments", equipmentDrawer);
-
-				EditorGUILayout.BeginHorizontal();
-				GUILayout.FlexibleSpace();
-				if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
-				{
-					EquipmentsData.Instance.sets.Add(set);
-					EquipmentsData.Instance.AddSetToEquipment(set);
-					set = new SetData();
-					EditorUtility.SetDirty(EquipmentsData.Instance);
-				}
-				EditorGUILayout.EndHorizontal();
 			}
 
 			public override void OnGUIUpdate()
 			{
 
+			}
+
+			protected override void OnCreateButton()
+			{
+				EquipmentsData.Instance.sets.Add(set);
+				EquipmentsData.Instance.AddSetToEquipment(set);
+				set = new SetData();
+				EditorUtility.SetDirty(EquipmentsData.Instance);
+			}
+
+			protected override List<string> CheckErrors()
+			{
+				List<string> errors = new List<string>();
+
+				if (string.IsNullOrEmpty(set.id))
+					errors.Add("ID can't be null.");
+
+				if (!string.IsNullOrEmpty(set.id) && EquipmentsData.Instance.sets.Select(e => e.id).Any(id => id == set.id))
+					errors.Add("ID should be unique. There is another set with the same ID.");
+
+				return errors;
+			}
+
+			protected override List<string> CheckWarnings()
+			{
+				List<string> warnings = new List<string>();
+
+				if (string.IsNullOrEmpty(set.name))
+					warnings.Add("There is no equipment name.");
+
+				if (!string.IsNullOrEmpty(set.name) && EquipmentsData.Instance.equipments.Select(e => e.name).Any(name => name == set.name))
+					warnings.Add("There is another set with the same name.");
+
+				return warnings;
 			}
 
 			private class EquipmentListDrawer : EditorListDrawer<string>.ListDrawer
