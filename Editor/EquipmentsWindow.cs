@@ -416,7 +416,7 @@ namespace LRT.Smith.Equipments.Editor
 				if (IsUpdate)
 				{
 					EquipmentsData.Instance.equipments[index.Value] = equipment;
-					EquipmentsData.Instance.AddEquipmentToSet(equipment);
+					EquipmentsData.Instance.SynchronizeEquipmentToSet();
 					index = null;
 					window.view = WindowPanelView.Update;
 				}
@@ -587,7 +587,8 @@ namespace LRT.Smith.Equipments.Editor
 
 			public override void OnGUICreate()
 			{
-				EditorGUILayout.LabelField("New Rarity", EditorStyles.boldLabel);
+				string label = IsUpdate ? "Update Rarity" : "New Rarity";
+				EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
 
 				rarity.id = EditorGUILayout.TextField("ID", rarity.id);
 				rarity.name = EditorGUILayout.TextField("Name", rarity.name);
@@ -639,7 +640,15 @@ namespace LRT.Smith.Equipments.Editor
 
 			protected override void OnCreateButton()
 			{
-				EquipmentsData.Instance.rarities.Add(rarity);
+				if (IsUpdate)
+				{
+					EquipmentsData.Instance.rarities[index.Value] = rarity;
+					index = null;
+					window.view = WindowPanelView.Update;
+				}
+				else
+					EquipmentsData.Instance.rarities.Add(rarity);
+
 				rarity = new RarityData();
 				EditorUtility.SetDirty(EquipmentsData.Instance);
 			}
@@ -721,7 +730,8 @@ namespace LRT.Smith.Equipments.Editor
 
 			public override void OnGUICreate()
 			{
-				EditorGUILayout.LabelField("New Set", EditorStyles.boldLabel);
+				string label = IsUpdate ? "Update Set" : "New Set";
+				EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
 
 				set.id = EditorGUILayout.TextField("ID", set.id);
 				set.name = EditorGUILayout.TextField("Name", set.name);
@@ -730,8 +740,19 @@ namespace LRT.Smith.Equipments.Editor
 
 			protected override void OnCreateButton()
 			{
-				EquipmentsData.Instance.sets.Add(set);
-				EquipmentsData.Instance.AddSetToEquipment(set);
+				if (IsUpdate)
+				{
+					EquipmentsData.Instance.sets[index.Value] = set;
+					EquipmentsData.Instance.SynchronizeSetToEquipment();
+					index = null;
+					window.view = WindowPanelView.Update;
+				}
+				else
+				{
+					EquipmentsData.Instance.sets.Add(set);
+					EquipmentsData.Instance.AddSetToEquipment(set);
+				}
+				
 				set = new SetData();
 				EditorUtility.SetDirty(EquipmentsData.Instance);
 			}

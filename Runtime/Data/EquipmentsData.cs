@@ -34,6 +34,36 @@ namespace LRT.Smith.Equipments
 			}
 		}
 
+		public void SynchronizeSetToEquipment()
+		{
+			foreach(SetData set in sets)
+			{
+				foreach(string id in set.equipmentsID)
+				{
+					GetEquipment(id).setID = set.id;
+				}
+			}
+		}
+
+		public void SynchronizeEquipmentToSet()
+		{
+			foreach (SetData set in sets)
+			{
+				set.equipmentsID.Clear();
+			}
+
+			foreach (EquipmentData equipment in equipments)
+			{
+				if (equipment.HasSet)
+					GetSet(equipment.setID).equipmentsID.Add(equipment.id);
+			}
+		}
+
+		public EquipmentData GetEquipment(string id)
+		{
+			return equipments.FirstOrDefault(e => e.id == id);
+		}
+
 		public RarityData GetRarity(string id)
 		{
 			return rarities.FirstOrDefault(r => r.id == id);
