@@ -91,6 +91,7 @@ namespace LRT.Smith.Equipments.Editor
 						{
 							state = values[i];
 							view = valuesView[j];
+							panels[state].Clear();
 							GUI.FocusControl(null);
 						}
 
@@ -102,14 +103,17 @@ namespace LRT.Smith.Equipments.Editor
 		}
 
 		#region Panels
-		public abstract class WindowPanel 
+		public abstract class WindowPanel
 		{
 			public abstract void OnGUI(Rect rect);
+			public abstract void Clear();
 		}
 
 		public abstract class WindowPanel<T> : WindowPanel
 		{
 			protected EquipmentsWindow window;
+
+			protected abstract bool IsUpdate { get; set; }
 
 			public WindowPanel(EquipmentsWindow wizard)
 			{
@@ -123,7 +127,7 @@ namespace LRT.Smith.Equipments.Editor
 					case WindowPanelView.Create:
 						GUILayout.BeginArea(rect);
 						OnGUICreate();
-						CreateButton(Errors(CheckErrors(), CheckWarnings()));
+						CreateButton(IsUpdate, Errors(CheckErrors(), CheckWarnings()));
 						GUILayout.EndArea();
 						break;
 					case WindowPanelView.Update:
@@ -134,6 +138,9 @@ namespace LRT.Smith.Equipments.Editor
 			}
 
 			public abstract void OnGUICreate();
+
+			public abstract void OpenFor(T item, int index);
+			public override void Clear() => IsUpdate = false;
 
 			protected abstract List<string> CheckErrors();
 			protected abstract List<string> CheckWarnings();
@@ -169,6 +176,9 @@ namespace LRT.Smith.Equipments.Editor
 					{
 						table.tableData[j].Draw(lineFlex[j], item);
 					}
+
+					if (GUI.Button(line, "", GUIStyle.none))
+						OpenFor(item, i);
 				}
 
 				void LabelField(Rect rect, string content)
@@ -192,14 +202,14 @@ namespace LRT.Smith.Equipments.Editor
 				return errors.Count > 0;
 			}
 
-			private void CreateButton(bool isError)
+			private void CreateButton(bool isUpdate, bool isError)
 			{
 
 				EditorGUILayout.BeginHorizontal();
 				GUILayout.FlexibleSpace();
 				using (new EditorGUI.DisabledGroupScope(isError))
 				{
-					if (GUILayout.Button("Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
+					if (GUILayout.Button(isUpdate ? "Update" : "Create", GUILayout.MinWidth(100), GUILayout.MinHeight(35)))
 						OnCreateButton();
 				}
 				EditorGUILayout.EndHorizontal();
@@ -244,7 +254,7 @@ namespace LRT.Smith.Equipments.Editor
 			public class TableDataString : TableData
 			{
 				public TableDataString(string header, Func<T, object> getValue, int weight) : base(header, getValue, weight) { }
-				
+
 				public override void Draw(Rect rect, T item)
 				{
 					string content = (string)getValue(item);
@@ -254,7 +264,7 @@ namespace LRT.Smith.Equipments.Editor
 
 			public class TableDataColor : TableData
 			{
-				public TableDataColor(string header, Func<T, object> getValue, int weight) : base(header, getValue, weight)  { }
+				public TableDataColor(string header, Func<T, object> getValue, int weight) : base(header, getValue, weight) { }
 
 				public override void Draw(Rect rect, T item)
 				{
@@ -269,6 +279,20 @@ namespace LRT.Smith.Equipments.Editor
 		public class EquipmentPanel : WindowPanel<EquipmentData>
 		{
 			public EquipmentData equipment = new EquipmentData();
+			public int? index;
+
+			protected override bool IsUpdate
+			{
+				get => index.HasValue;
+				set
+				{
+					if (index.HasValue)
+					{
+						index = null;
+						equipment = new EquipmentData();
+					}
+				}
+			}
 
 			private EnumFlagListDrawer enumFlagDrawer;
 			private StatisticListDrawer statisticDrawer;
@@ -280,9 +304,18 @@ namespace LRT.Smith.Equipments.Editor
 			}
 
 			#region Create
+			public override void OpenFor(EquipmentData equipment, int index)
+			{
+				this.equipment = new EquipmentData(equipment);
+				this.index = index;
+				window.view = WindowPanelView.Create;
+				window.state = WindowPanelType.Equipment;
+			}
+
 			public override void OnGUICreate()
 			{
-				EditorGUILayout.LabelField("New Equipment", EditorStyles.boldLabel);
+				string label = IsUpdate ? "Update Equipment" : "New Equipment";
+				EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
 
 				equipment.id = EditorGUILayout.TextField("ID", equipment.id);
 				equipment.name = EditorGUILayout.TextField("name", equipment.name);
@@ -338,10 +371,13 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				List<string> errors = new List<string>();
 
+				EquipmentData updatedEquipment = IsUpdate ? EquipmentsData.Instance.equipments[index.Value] : null;
+
 				if (string.IsNullOrEmpty(equipment.id))
 					errors.Add("ID can't be null.");
 
-				if (!string.IsNullOrEmpty(equipment.id) && EquipmentsData.Instance.equipments.Select(e => e.id).Any(id => id == equipment.id))
+				if (!string.IsNullOrEmpty(equipment.id)
+					&& EquipmentsData.Instance.equipments.Where(e => e != updatedEquipment).Select(e => e.id).Any(id => id == equipment.id))
 					errors.Add("ID should be unique. There is another equipment with the same ID.");
 
 				if (equipment.rarityID == null)
@@ -377,8 +413,19 @@ namespace LRT.Smith.Equipments.Editor
 
 			protected override void OnCreateButton()
 			{
-				EquipmentsData.Instance.equipments.Add(new EquipmentData(equipment));
-				EquipmentsData.Instance.AddEquipmentToSet(equipment);
+				if (IsUpdate)
+				{
+					EquipmentsData.Instance.equipments[index.Value] = equipment;
+					EquipmentsData.Instance.AddEquipmentToSet(equipment);
+					index = null;
+					window.view = WindowPanelView.Update;
+				}
+				else
+				{
+					EquipmentsData.Instance.equipments.Add(new EquipmentData(equipment));
+					EquipmentsData.Instance.AddEquipmentToSet(equipment);
+				}
+
 				equipment = new EquipmentData();
 				enumFlagDrawer = new EnumFlagListDrawer(equipment.flags);
 				statisticDrawer = new StatisticListDrawer(equipment.statistics);
@@ -508,6 +555,20 @@ namespace LRT.Smith.Equipments.Editor
 		public class RarityPanel : WindowPanel<RarityData>
 		{
 			RarityData rarity;
+			int? index;
+
+			protected override bool IsUpdate
+			{
+				get => index.HasValue;
+				set
+				{
+					if (index.HasValue)
+					{
+						index = null;
+						rarity = new RarityData();
+					}
+				}
+			}
 
 			ModifierListDrawer modifierDrawer;
 
@@ -515,6 +576,13 @@ namespace LRT.Smith.Equipments.Editor
 			{
 				rarity = new RarityData();
 				modifierDrawer = new ModifierListDrawer(rarity.modifier);
+			}
+
+			public override void OpenFor(RarityData rarity, int index)
+			{
+				this.rarity = rarity;
+				window.view = WindowPanelView.Create;
+				window.state = WindowPanelType.Rarity;
 			}
 
 			public override void OnGUICreate()
@@ -622,12 +690,33 @@ namespace LRT.Smith.Equipments.Editor
 		public class SetPanel : WindowPanel<SetData>
 		{
 			SetData set = new SetData();
+			int? index;
+
+			protected override bool IsUpdate
+			{
+				get => index.HasValue;
+				set
+				{
+					if (index.HasValue)
+					{
+						index = null;
+						set = new SetData();
+					}
+				}
+			}
 
 			EquipmentListDrawer equipmentDrawer;
 
 			public SetPanel(EquipmentsWindow window) : base(window)
 			{
 				equipmentDrawer = new EquipmentListDrawer(set.equipmentsID, set);
+			}
+
+			public override void OpenFor(SetData set, int index)
+			{
+				this.set = set;
+				window.view = WindowPanelView.Create;
+				window.state = WindowPanelType.Equipment;
 			}
 
 			public override void OnGUICreate()
