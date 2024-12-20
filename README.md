@@ -18,3 +18,49 @@ Add the package and his dependencies to the project :
   }
 }
 ```
+
+## Data
+
+Create data throught the editor and access it using the `EquipmentsData` singleton.
+
+### Editor
+
+Empty view when creating equipment.
+
+![Empty equipment create view](Editor/Pictures/equipment_create_empty.png)
+
+Filled view when creating equipment.
+
+![Filled equipment create view](Editor/Pictures/equipment_create_filled.png)
+
+Update view of already created equipments. They are clickable and modifiable.
+
+![Update equipment view](Editor/Pictures/equipment_update.png)
+
+And you got the same views for rarity and set.
+
+## Attribute
+
+User can define his own flags to use them inside the tool. The attribute inherit from `[FlagsAttribute]`.
+
+```csharp
+using LRT.Smith.Equipments;
+
+[EquipmentFlags]
+public enum Slot
+{ 
+	MainHand = 1 << 1,
+	OffHand = 1 << 2,
+	Head = 1 << 3,
+	Torso = 1 << 4,
+	Pants = 1 << 5,
+}
+
+[EquipmentFlags]
+public enum Type
+{
+	Sword = 1 << 1,
+	Spear = 1 << 2,
+	Hammer = 1 << 3,
+}
+```
