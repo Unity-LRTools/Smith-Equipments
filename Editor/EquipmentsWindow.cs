@@ -485,7 +485,7 @@ namespace LRT.Smith.Equipments.Editor
 
 				public override void DrawBeforeAddButton()
 				{
-					List<Type> types = GetEnumsWithAttribute<EquipmentFlags>(GetUnityRuntimeAssembly());
+					List<Type> types = GetEnumsWithAttribute<EquipmentFlagsAttribute>(GetUnityRuntimeAssembly());
 					string[] typesNames = types.Select(t => t.FullName).ToArray();
 					int index = Mathf.Max(0, Array.IndexOf(typesNames, typeName));
 
